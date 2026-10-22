@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Breadcast: bake what sells, waste less</title>
+  <meta name="description" content="Breadcast forecasts bakery demand with censored quantile regression and turns it into daily bake quantities that cut unsold bread. Runs fully in your browser.">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="hero">
+    <div class="wrap">
+      <div class="brand"><span class="mark" aria-hidden="true">◐</span> Breadcast</div>
+      <h1>Bake what sells. Waste less.</h1>
+      <p>Small bakeries guess tomorrow's quantities from yesterday's gut feeling, and the unsold rest is thrown away. Breadcast learns demand from your own sales history, right in the browser, and tells you how much to bake per product.</p>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <section class="card" aria-labelledby="s1">
+      <div class="step-head"><span class="stepnum">1</span><h2 id="s1">Your sales history</h2></div>
+      <p class="muted">One row per product and day: <code>date, product, baked, sold</code>, optional <code>rain, temp_c, holiday</code>. Nothing is uploaded.</p>
+      <div class="actions">
+        <button class="btn primary" id="load-sample">Load synthetic bakery (14 months)</button>
+        <label class="btn file">Upload CSV <input type="file" id="file" accept=".csv,text/csv"></label>
+        <button class="btn" id="template">Download template</button>
+      </div>
+      <p class="status" id="data-status" role="status"></p>
+    </section>
+
+    <section class="card" id="econ-card" aria-labelledby="s2" hidden>
+      <div class="step-head"><span class="stepnum">2</span><h2 id="s2">What a roll is worth</h2></div>
+      <p class="muted">Breadcast does not just predict the average. It picks the quantity that balances a lost sale against a wasted item (the newsvendor rule). Enter prices and costs per item.</p>
+      <div class="table-wrap"><table class="econ">
+        <thead><tr><th scope="col">Product</th><th scope="col">Price (€)</th><th scope="col">Cost to bake (€)</th><th scope="col">Value if unsold (€)<span class="hint">e.g. sold cheap next day</span></th><th scope="col">Target service level</th></tr></thead>
+        <tbody id="econ-body"></tbody>
+      </table></div>
+      <div class="slider">
+        <label for="penalty"><strong>Extra cost of waste</strong> <span class="muted">(environmental and social cost you want to count per wasted item, as % of its baking cost)</span></label>
+        <div class="slider-row"><input type="range" id="penalty" min="0" max="300" step="25" value="0"><output id="penalty-out">0%</output></div>
+      </div>
+      <div class="actions"><button class="btn primary" id="run">Train &amp; backtest</button></div>
+    </section>
+
+    <section class="card" id="results" aria-labelledby="s3" hidden>
+      <div class="step-head"><span class="stepnum">3</span><h2 id="s3">Would it have helped? Backtest on the last 8 weeks</h2></div>
+      <p class="muted">The model is trained only on data before the test period, then its recommendations are compared with what was actually baked. On sold-out days true demand is unknown, so Breadcast's waste is counted as if demand equalled sales. That only makes Breadcast look worse, never better.</p>
+      <div class="kpis" id="kpis"></div>
+      <div class="table-wrap"><table class="results">
+        <thead><tr><th scope="col">Product</th><th scope="col" class="num">Service level</th><th scope="col" class="num">Waste now</th><th scope="col" class="num">Waste with Breadcast</th><th scope="col" class="num">Waste rate</th><th scope="col" class="num">Units sold</th><th scope="col" class="num">Margin</th></tr></thead>
+        <tbody id="results-body"></tbody>
+      </table></div>
+      <div class="chart-head">
+        <h3>Day by day</h3>
+        <label class="inline">Product <select id="chart-product"></select></label>
+      </div>
+      <div id="chart" class="chart"></div>
+      <ul class="legend"><li><i class="sw baked"></i>Actually baked</li><li><i class="sw sold"></i>Sold</li><li><i class="sw rec"></i>Breadcast recommendation</li><li><i class="sw out"></i>Sold out (demand unknown)</li></ul>
+      <details class="learned"><summary>What the model learned for this product</summary><div id="learned"></div></details>
+    </section>
+
+    <section class="card" id="plan-card" aria-labelledby="s4" hidden>
+      <div class="step-head"><span class="stepnum">4</span><h2 id="s4">Tomorrow's bake plan</h2></div>
+      <div class="plan-controls">
+        <label class="inline">Date <input type="date" id="plan-date"></label>
+        <label class="check"><input type="checkbox" id="plan-rain"> Rain expected</label>
+        <label class="check"><input type="checkbox" id="plan-holiday"> Public holiday</label>
+        <label class="check"><input type="checkbox" id="plan-pre"> Day before a holiday</label>
+        <label class="inline">Temperature °C <input type="number" id="plan-temp" step="1" value="12"></label>
+        <button class="btn primary" id="plan-btn">Update plan</button>
+      </div>
+      <div class="table-wrap"><table class="plan">
+        <thead><tr><th scope="col">Product</th><th scope="col" class="num">Bake</th><th scope="col" class="num">Demand range<span class="hint">25–90% quantile</span></th><th scope="col">Same weekday last week</th><th scope="col">Main drivers<span class="hint">vs. an average day</span></th></tr></thead>
+        <tbody id="plan-body"></tbody>
+      </table></div>
+      <div class="actions"><button class="btn" id="plan-csv">Download plan (CSV)</button><button class="btn" id="plan-print">Print plan</button></div>
+    </section>
+
+    <section class="card prose" aria-labelledby="s5">
+      <h2 id="s5">How we measure success</h2>
+      <p>Breadcast is judged by two numbers each week: the <strong>waste rate</strong> (unsold items ÷ baked items) and the <strong>sold-out rate</strong> (days a product ran out before closing). Success means a lower waste rate over four weeks without a higher sold-out rate or lower margin than the four weeks before. The backtest above is the same measurement applied to the past.</p>
+      <h3>How it works</h3>
+      <ul>
+        <li><strong>Model:</strong> a linear quantile regression on log sales per product, with weekday, season, holiday, weather and recent sales features, trained with Adam on the pinball loss directly in your browser.</li>
+        <li><strong>Censored demand:</strong> when everything was sold, true demand was higher than sales. Those days only penalise under-prediction, so the model does not learn that sell-outs mean "low demand".</li>
+        <li><strong>Decision:</strong> the quantile is the newsvendor critical ratio (price − cost) ÷ (price − value if unsold + extra cost of waste). Making waste more expensive lowers the target and the bake quantity.</li>
+      </ul>
+      <p class="muted">The sample bakery is synthetic. Its "actually baked" column follows a common rule of thumb (average of the last four same weekdays plus 20%). Results on real data will differ.</p>
+    </section>
+  </main>
+  <footer class="foot wrap">Breadcast · open source (MIT) · runs locally in your browser · <a href="https://github.com/Lilith568/breadcast">source code</a></footer>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "breadcast",
+  "version": "1.0.0",
+  "description": "Bakery demand forecasting with censored quantile regression to cut unsold bread. Runs in the browser.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "test": "node --test tests/forecast.test.mjs",
+    "sample": "node scripts/make-sample.mjs"
+  }
+}
